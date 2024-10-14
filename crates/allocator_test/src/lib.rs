@@ -46,6 +46,12 @@ extern "C" {
         cb2: CallBackMallocAligned,
         cb3: CallBackFree,
     );
+    /// the start function of the glibc_bench_test_simple
+    pub fn glibc_bench_simple_test_start(
+        cb1: CallBackMalloc,
+        cb2: CallBackMallocAligned,
+        cb3: CallBackFree,
+    );
     /// the start function of the multi_thread_c_test
     pub fn multi_thread_c_test_start(
         cb1: CallBackMalloc,
@@ -104,6 +110,13 @@ pub fn glibc_bench_test() {
         glibc_bench_test_start(cb_malloc_func, cb_malloc_aligned_func, cb_free_func);
     }
 }
+/// interface of glibc bench simple test
+pub fn glibc_bench_simple_test() {
+    unsafe {
+        glibc_bench_simple_test_start(cb_malloc_func, cb_malloc_aligned_func, cb_free_func);
+    }
+}
+
 /// interface of thread c test
 pub fn multi_thread_c_test() {
     unsafe {

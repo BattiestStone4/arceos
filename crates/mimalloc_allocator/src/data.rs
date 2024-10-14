@@ -64,6 +64,10 @@ pub struct Page {
     pub block_size: usize,
     // free链表
     pub free_list: BlockPointer,
+    // local free list
+    pub local_free_list: BlockPointer,
+    // thread free list
+    pub thread_free_list: usize, 
     // page开始地址
     pub begin_addr: usize,
     // page结束地址
@@ -202,8 +206,10 @@ pub struct Segment {
     pub num_pages: usize,
     // 每个page的头结构
     pub pages: [Page; MAX_PAGE_PER_SEGMEGT],
+    /// thread_id
+    pub thread_id: usize,  
     // padding，使空间对齐到8192
-    pub padding: [usize; 434],
+    pub padding: [usize; 433],
     // 接下来就是每个page的实际空间，注意第一个page会小一些
 }
 

@@ -42,6 +42,14 @@ pub fn glibc_bench_test() {
     println!("time: {:#?}", t1 - t0);
     println!("Glibc bench test OK!");
 }
+pub fn glibc_bench_simple_test() {
+    println!("Glibc bench simple test begin...");
+    let t0 = std::time::Instant::now();
+    allocator_test::glibc_bench_simple_test();
+    let t1 = std::time::Instant::now();
+    println!("time: {:#?}", t1 - t0);
+    println!("Glibc bench simple test OK!");
+}
 pub fn multi_thread_c_test() {
     println!("Multi thread C test begin...");
     let t0 = std::time::Instant::now();
@@ -199,6 +207,7 @@ fn system_alloc_test() {
     align_test();
     malloc_large_test();
     glibc_bench_test();
+    glibc_bench_simple_test();
     multi_thread_test();
     multi_thread_c_test();
     println!("system test passed!");
@@ -219,6 +228,7 @@ fn tlsf_rust_alloc_test() {
     mi_test();
     align_test();
     malloc_large_test();
+    //glibc_bench_simple_test();
     //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
@@ -243,6 +253,7 @@ fn tlsf_c_alloc_test() {
     mi_test();
     align_test();
     malloc_large_test();
+    //glibc_bench_simple_test();
     //glibc_bench_test();
     //multi_thread_test();
     //multi_thread_c_test();
@@ -333,6 +344,7 @@ fn buddy_fit_alloc_test() {
     }
     //basic_test();
     mi_test();
+    glibc_bench_simple_test();
     //align_test();
     //malloc_large_test();
     //glibc_bench_test();
@@ -356,6 +368,7 @@ fn slab_alloc_test() {
     }
     //basic_test();
     mi_test();
+    glibc_bench_simple_test();
     //align_test();
     //malloc_large_test();
     //glibc_bench_test();
@@ -382,6 +395,7 @@ fn mi_alloc_test() {
     align_test();
     malloc_large_test();
     glibc_bench_test();
+    glibc_bench_simple_test();
     multi_thread_test();
     multi_thread_c_test();
     println!("mi alloc test passed!");
