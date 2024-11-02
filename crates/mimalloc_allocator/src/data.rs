@@ -1,4 +1,5 @@
 use core::mem::size_of;
+use core::sync::atomic::AtomicPtr;
 
 /// Block的pointer
 #[derive(Clone, Copy)]
@@ -96,6 +97,10 @@ pub const FREE_MEDIUM_PAGE_QUEUE: usize = 74;
 pub struct MiHeap {
     // page链表
     pub pages: [PagePointer; TOT_QUEUE_NUM],
+    // thread id
+    pub thread_id: usize, 
+    // thread delayed free
+    pub thread_delayed_free: AtomicPtr<BlockPointer>
 }
 
 /// lowbit
@@ -209,7 +214,7 @@ pub struct Segment {
     /// thread_id
     pub thread_id: usize,  
     // padding，使空间对齐到8192
-    pub padding: [usize; 433],
+    pub padding: [usize; 431],
     // 接下来就是每个page的实际空间，注意第一个page会小一些
 }
 
@@ -298,6 +303,7 @@ impl Segment {
         let mut end_addr = addr + page_size;
         let end = addr + size;
         self.num_pages = 0;
+        self.thread_id = 0;
         for i in 0..MAX_PAGE_PER_SEGMEGT {
             if begin_addr == end {
                 self.pages[i].init(0, 0, 0);
@@ -317,6 +323,8 @@ impl MiHeap {
         for i in 0..TOT_QUEUE_NUM {
             self.pages[i] = PagePointer { addr: 0 };
         }
+        self.thread_id = 0;
+        self.thread_delayed_free = AtomicPtr::new(&mut BlockPointer { addr: 0 });
     }
     /// 向链表里插入一个page
     pub fn insert_to_list(&mut self, idx: usize, mut page: PagePointer) {
