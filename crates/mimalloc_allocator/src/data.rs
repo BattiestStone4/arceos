@@ -1,5 +1,5 @@
 use core::mem::size_of;
-use core::sync::atomic::AtomicPtr;
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 /// Block的pointer
 #[derive(Clone, Copy)]
@@ -15,6 +15,30 @@ impl BlockPointer {
     /// get mut reference
     pub fn get_mut_ref(&mut self) -> &mut Block {
         unsafe { &mut (*(self.addr as *mut Block)) }
+    }
+}
+
+pub struct AtomicBlockPtr {
+    pub ptr: AtomicPtr<BlockPointer>,
+}
+
+impl AtomicBlockPtr {
+    fn new(ptr: *mut BlockPointer) -> Self {
+        AtomicBlockPtr {
+            ptr: AtomicPtr::new(ptr)
+        }
+    }
+}
+
+impl Clone for AtomicBlockPtr {
+    fn clone(&self) -> Self {
+        let atomic_ptr_clone = self.ptr.load(Ordering::SeqCst);
+        let new_atomic_ptr = AtomicPtr::new(atomic_ptr_clone);
+
+        AtomicBlockPtr {
+            ptr: AtomicPtr::new(atomic_ptr_clone)
+        }
+
     }
 }
 
@@ -59,7 +83,7 @@ pub struct Block {
 }
 
 /// mimalloc的一个page控制头
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Page {
     // 块大小
     pub block_size: usize,
@@ -68,7 +92,7 @@ pub struct Page {
     // local free list
     pub local_free_list: BlockPointer,
     // thread free list
-    pub thread_free_list: usize, 
+    pub thread_free_list: AtomicBlockPtr, 
     // page开始地址
     pub begin_addr: usize,
     // page结束地址
@@ -80,7 +104,7 @@ pub struct Page {
     // page链表中的下一项
     pub next_page: PagePointer,
     // 剩余块数
-    pub free_blocks_num: usize,
+    pub free_blocks_num: usize,   
 }
 
 pub const TOT_QUEUE_NUM: usize = 75;
@@ -100,7 +124,7 @@ pub struct MiHeap {
     // thread id
     pub thread_id: usize, 
     // thread delayed free
-    pub thread_delayed_free: AtomicPtr<BlockPointer>
+    pub thread_delayed_free: AtomicBlockPtr,
 }
 
 /// lowbit
@@ -234,6 +258,8 @@ impl Page {
         self.capacity = self.begin_addr;
         self.block_size = size;
         self.free_list = BlockPointer { addr: 0 };
+        self.local_free_list = BlockPointer { addr: 0 };
+        self.thread_free_list = AtomicBlockPtr::new(&mut BlockPointer { addr: 0 });
         if self.block_size == 0 {
             self.free_blocks_num = 0;
         } else {
@@ -324,7 +350,7 @@ impl MiHeap {
             self.pages[i] = PagePointer { addr: 0 };
         }
         self.thread_id = 0;
-        self.thread_delayed_free = AtomicPtr::new(&mut BlockPointer { addr: 0 });
+        self.thread_delayed_free = AtomicBlockPtr::new(&mut BlockPointer { addr: 0 });
     }
     /// 向链表里插入一个page
     pub fn insert_to_list(&mut self, idx: usize, mut page: PagePointer) {
