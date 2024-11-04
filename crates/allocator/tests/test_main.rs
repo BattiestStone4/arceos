@@ -112,6 +112,7 @@ pub fn multi_thread_test() {
         // alloc memory and free half (only free the memory allocated by itself)
         FINISHED_TASKS.store(0, Ordering::Relaxed);
         for i in 0..NUM_TASKS {
+            //println!("Thread #{}", i);
             thread::spawn(move || {
                 unsafe {
                     let tid = i;
@@ -121,6 +122,7 @@ pub fn multi_thread_test() {
                         if let Ok(ptr) =
                             GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8))
                         {
+                            //println!("ptr: {:#x}, size: {:#x}, idx: {}", ptr, size, idx);
                             MEMORY_POOL[idx].store(ptr, Ordering::Relaxed);
                             MEMORY_SIZE[idx].store(size, Ordering::Relaxed);
                         } else {
@@ -151,6 +153,7 @@ pub fn multi_thread_test() {
         for i in 0..NUM_TASKS {
             thread::spawn(move || {
                 unsafe {
+                    println!("Thread #{}", i);
                     let tid = i;
                     for j in 0..(NUM_ARRAY_PRE_THREAD >> 1) {
                         let size = (1_usize << (rand_u32() % 12)) + (1_usize << (rand_u32() % 12));
@@ -160,6 +163,7 @@ pub fn multi_thread_test() {
                         if let Ok(ptr) =
                             GLOBAL_ALLOCATOR.alloc(Layout::from_size_align_unchecked(size, 8))
                         {
+                            println!("ptr: {:#x}, size: {:#x}, idx: {}", ptr, size, idx);
                             MEMORY_POOL[idx].store(ptr, Ordering::Relaxed);
                             MEMORY_SIZE[idx].store(size, Ordering::Relaxed);
                         } else {

@@ -4,14 +4,45 @@
 
 use super::{AllocError, AllocResult, BaseAllocator, ByteAllocator};
 use core::alloc::Layout;
+use core::cell::UnsafeCell;
+use core::sync::atomic::AtomicIsize;
 use mimalloc_allocator::Heap;
 
+type BorrowFlag = AtomicIsize;
 /// A byte-granularity memory allocator based on the [mimalloc_allocator] written by rust code.
 pub struct MiAllocator {
+    //Atomic...
+    borrow: BorrowFlag,
+    data: UnsafeCell<MiAllocatorInner>,
+}
+
+pub struct MiAllocatorInner {
     inner: Option<Heap>,
 }
 
 impl MiAllocator {
+    /// Creates a new empty `TLSFAllocator`.
+    pub const fn new() -> Self {
+        Self { 
+            borrow: AtomicIsize::new(0),
+            data: UnsafeCell::new(MiAllocatorInner::new()) 
+        }
+    }
+
+    pub fn inner_mut(&mut self) -> &mut MiAllocatorInner {
+        self.data.get_mut()
+    }
+
+    pub fn inner(&self) -> &MiAllocatorInner {
+            let ptr = self.data.get();
+            let reference: &MiAllocatorInner = unsafe {
+                &*ptr
+            };
+            reference
+    }
+}
+
+impl MiAllocatorInner {
     /// Creates a new empty `TLSFAllocator`.
     pub const fn new() -> Self {
         Self { inner: None }
@@ -26,7 +57,7 @@ impl MiAllocator {
     }
 }
 
-impl BaseAllocator for MiAllocator {
+impl BaseAllocator for MiAllocatorInner {
     fn init(&mut self, start: usize, size: usize) {
         self.inner = Some(Heap::new());
         self.inner_mut().init(start, size);
@@ -38,7 +69,7 @@ impl BaseAllocator for MiAllocator {
     }
 }
 
-impl ByteAllocator for MiAllocator {
+impl ByteAllocator for MiAllocatorInner {
     fn alloc(&mut self, size: usize, align_pow2: usize) -> AllocResult<usize> {
         self.inner_mut()
             .allocate(Layout::from_size_align(size, align_pow2).unwrap())
