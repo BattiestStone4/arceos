@@ -67,11 +67,31 @@ impl AxNamespace {
     }
 
     /// Returns the global namespace.
+    #[cfg(not(feature = "thread-local"))]
     pub fn global() -> Self {
         Self {
             base: __start_axns_resource as *mut u8,
             alloc: false,
         }
+    }
+
+    pub fn global() -> Self {
+        use core::ptr::null_mut;
+        
+        static mut GLOBAL_BASE: *mut u8 = null_mut();
+        unsafe {
+            if GLOBAL_BASE.is_null() {
+                let mut ns = Self::new_thread_local();
+                GLOBAL_BASE = ns.base;
+                
+                ns.base = null_mut();
+            }
+            AxNamespace {
+                base: GLOBAL_BASE,
+                alloc: false,
+            }
+        }
+        
     }
 
     /// Constructs a new thread-local namespace.

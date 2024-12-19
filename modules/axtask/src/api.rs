@@ -1,6 +1,6 @@
 //! Task APIs for multi-task configuration.
 
-use alloc::{string::String, sync::Arc};
+use alloc::{string::String, sync::Arc, sync::Weak};
 
 pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
 
@@ -13,6 +13,9 @@ pub use crate::wait_queue::WaitQueue;
 
 /// The reference type of a task.
 pub type AxTaskRef = Arc<AxTask>;
+pub type WeakAxTaskRef = Weak<AxTask>;
+
+pub use crate::task::TaskState;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "sched_rr")] {

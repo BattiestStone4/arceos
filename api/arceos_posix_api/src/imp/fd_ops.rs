@@ -23,7 +23,19 @@ pub trait FileLike: Send + Sync {
 
 def_resource! {
     #[allow(non_camel_case_types)]
-    pub(crate) static FD_TABLE: AxResource<RwLock<FlattenObjects<Arc<dyn FileLike>, AX_FILE_LIMIT>>> = AxResource::new();
+    pub static FD_TABLE: AxResource<RwLock<FlattenObjects<Arc<dyn FileLike>, AX_FILE_LIMIT>>> = AxResource::new();
+}
+
+impl FD_TABLE {
+    pub fn copy_inner(&self) -> RwLock<FlattenObjects<Arc<dyn FileLike>, AX_FILE_LIMIT>> {
+        let table = self.read();
+        let mut new_table = FlattenObjects::new();
+        let count = table.count();
+        for i in 0..count {
+            new_table.add_at(i, table.get(i).unwrap().clone());
+        }
+        RwLock::new(new_table)
+    }
 }
 
 pub fn get_file_like(fd: c_int) -> LinuxResult<Arc<dyn FileLike>> {

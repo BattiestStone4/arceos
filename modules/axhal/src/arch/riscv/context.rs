@@ -85,10 +85,21 @@ impl TrapFrame {
     pub const fn arg5(&self) -> usize {
         self.regs.a5
     }
+    
+    /// set return code
+    pub fn set_ret_code(&mut self, ret_value: usize) {
+        self.regs.a0 = ret_value;
+    }
+
+    /// set user sp
+    pub fn set_user_sp(&mut self, user_sp: usize) {
+        self.regs.sp = user_sp;
+    }
 }
 
 /// Context to enter user space.
 #[cfg(feature = "uspace")]
+#[derive(Copy, Clone)]
 pub struct UspaceContext(TrapFrame);
 
 #[cfg(feature = "uspace")]

@@ -22,7 +22,7 @@ pub struct TaskId(u64);
 /// The possible states of a task.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) enum TaskState {
+pub enum TaskState {
     Running = 1,
     Ready = 2,
     Blocked = 3,
@@ -60,7 +60,7 @@ pub struct TaskInner {
 }
 
 impl TaskId {
-    fn new() -> Self {
+    pub fn new() -> Self {
         static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
         Self(ID_COUNTER.fetch_add(1, Ordering::Relaxed))
     }
@@ -159,6 +159,23 @@ impl TaskInner {
             None
         }
     }
+
+    #[inline]
+    pub fn get_kernel_stack_top(&self) -> Option<usize> {
+        if let Some(kstack) = &self.kstack {
+            return Some(kstack.top().as_usize());
+        }
+        None
+    }
+
+    #[inline]
+    pub fn state(&self) -> TaskState {
+        self.state.load(Ordering::Acquire).into()
+    }
+
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code.load(Ordering::Acquire)
+    }
 }
 
 // private methods
@@ -209,10 +226,10 @@ impl TaskInner {
         Arc::new(AxTask::new(self))
     }
 
-    #[inline]
-    pub(crate) fn state(&self) -> TaskState {
-        self.state.load(Ordering::Acquire).into()
-    }
+    // #[inline]
+    // pub(crate) fn state(&self) -> TaskState {
+    //     self.state.load(Ordering::Acquire).into()
+    // }
 
     #[inline]
     pub(crate) fn set_state(&self, state: TaskState) {

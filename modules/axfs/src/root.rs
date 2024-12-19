@@ -13,9 +13,21 @@ use crate::{api::FileType, fs, mounts};
 
 def_resource! {
     #[allow(non_camel_case_types)]
-    static CURRENT_DIR_PATH: AxResource<Mutex<String>> = AxResource::new();
+    pub static CURRENT_DIR_PATH: AxResource<Mutex<String>> = AxResource::new();
     #[allow(non_camel_case_types)]
-    static CURRENT_DIR: AxResource<Mutex<VfsNodeRef>> = AxResource::new();
+    pub static CURRENT_DIR: AxResource<Mutex<VfsNodeRef>> = AxResource::new();
+}
+
+impl CURRENT_DIR_PATH {
+    pub fn copy_inner(&self) -> Mutex<String> {
+        Mutex::new(self.lock().clone())
+    }
+}
+
+impl CURRENT_DIR {
+    pub fn copy_inner(&self) -> Mutex<VfsNodeRef> {
+        Mutex::new(self.lock().clone())
+    }
 }
 
 struct MountPoint {
