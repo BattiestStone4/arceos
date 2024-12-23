@@ -71,5 +71,5 @@ members = [
     "modules/axsync",
     "modules/axtask",
 
-    "ulib/libax",
+    "ulib/libax", "crates/mimalloc_multithread_allocator",
 ]
