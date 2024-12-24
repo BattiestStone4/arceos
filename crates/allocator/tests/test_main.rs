@@ -391,6 +391,29 @@ fn mi_alloc_test() {
     }
 }
 
+fn mi_c_alloc_test() {
+    srand(2333);
+    unsafe {
+        GLOBAL_ALLOCATOR.init_heap();
+    }
+    println!("mi c alloc test:");
+    unsafe {
+        GLOBAL_ALLOCATOR.init_mi_c();
+    }
+    basic_test();
+    mi_test();
+    align_test();
+    malloc_large_test();
+    glibc_bench_test();
+    multi_thread_test();
+    multi_thread_c_test();
+    println!("mi alloc test passed!");
+    println!("*****************************");
+    unsafe {
+        GLOBAL_ALLOCATOR.init_system();
+    }
+}
+
 #[test]
 fn test_start() {
     system_alloc_test();
@@ -402,4 +425,5 @@ fn test_start() {
     tlsf_c_alloc_test();
     tlsf_rust_alloc_test();
     mi_alloc_test();
+    mi_c_alloc_test();
 }

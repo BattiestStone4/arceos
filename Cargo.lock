@@ -31,6 +31,7 @@ dependencies = [
  "cc",
  "log",
  "mimalloc_allocator",
+ "mimalloc_c_allocator",
  "slab_allocator",
  "tlsf_allocator",
 ]
@@ -1268,8 +1269,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "mimalloc_multithread_allocator"
+name = "mimalloc_c_allocator"
 version = "0.1.0"
+dependencies = [
+ "cc",
+ "cty",
+]
 
 [[package]]
 name = "minimal-lexical"

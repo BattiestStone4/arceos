@@ -58,6 +58,7 @@ members = [
     "crates/fs_utils",
     "crates/ext2fs",
     "crates/mimalloc_allocator",
+    "crates/mimalloc_c_allocator",
 
     "modules/axalloc",
     "modules/axconfig",
@@ -70,6 +71,8 @@ members = [
     "modules/axruntime",
     "modules/axsync",
     "modules/axtask",
+]
 
-    "ulib/libax", "crates/mimalloc_multithread_allocator",
+exclude = [
+    "crates/mimalloc_multithread_allocator"
 ]
