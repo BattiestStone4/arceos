@@ -18,6 +18,7 @@ slab_allocator = { path = "../slab_allocator" }
 basic_allocator = { path = "../basic_allocator" }
 tlsf_allocator = { path = "../tlsf_allocator" }
 mimalloc_allocator = { path = "../mimalloc_allocator" }
+mimalloc_c_allocator = { path = "../mimalloc_c_allocator" }
 allocator_test = { path = "../allocator_test" }
 log = "0.4"
 
