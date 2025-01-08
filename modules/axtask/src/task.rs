@@ -32,7 +32,7 @@ pub enum TaskState {
 /// The inner task structure.
 pub struct TaskInner {
     id: TaskId,
-    name: String,
+    name: UnsafeCell<String>,
     is_idle: bool,
     is_init: bool,
 
@@ -105,7 +105,7 @@ impl TaskInner {
         t.entry = Some(Box::into_raw(Box::new(entry)));
         t.ctx_mut().init(task_entry as usize, kstack.top(), tls);
         t.kstack = Some(kstack);
-        if t.name == "idle" {
+        if t.name() == "idle" {
             t.is_idle = true;
         }
         t
@@ -118,7 +118,14 @@ impl TaskInner {
 
     /// Gets the name of the task.
     pub fn name(&self) -> &str {
-        self.name.as_str()
+        unsafe { (*self.name.get()).as_str() }
+    }
+
+    /// Set the name of the task.
+    pub fn set_name(&self, name: &str) {
+        unsafe {
+            *self.name.get() = String::from(name);
+        }
     }
 
     /// Get a combined string of the task ID and name.
@@ -183,7 +190,7 @@ impl TaskInner {
     fn new_common(id: TaskId, name: String) -> Self {
         Self {
             id,
-            name,
+            name: UnsafeCell::new(name),
             is_idle: false,
             is_init: false,
             entry: None,
@@ -216,7 +223,7 @@ impl TaskInner {
     pub(crate) fn new_init(name: String) -> Self {
         let mut t = Self::new_common(TaskId::new(), name);
         t.is_init = true;
-        if t.name == "idle" {
+        if t.name() == "idle" {
             t.is_idle = true;
         }
         t
