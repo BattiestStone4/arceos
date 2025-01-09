@@ -40,10 +40,12 @@ pub struct OpenOptions {
     // generic
     read: bool,
     write: bool,
+    execute: bool,
     append: bool,
     truncate: bool,
     create: bool,
     create_new: bool,
+    directory: bool,
     // system-specific
     _custom_flags: i32,
     _mode: u32,
@@ -56,10 +58,12 @@ impl OpenOptions {
             // generic
             read: false,
             write: false,
+            execute: false,
             append: false,
             truncate: false,
             create: false,
             create_new: false,
+            directory: false,
             // system-specific
             _custom_flags: 0,
             _mode: 0o666,
@@ -72,6 +76,10 @@ impl OpenOptions {
     /// Sets the option for write access.
     pub fn write(&mut self, write: bool) {
         self.write = write;
+    }
+    /// Sets the option for execute access.
+    pub fn execute(&mut self, execute:bool) {
+        self.execute = execute;
     }
     /// Sets the option for the append mode.
     pub fn append(&mut self, append: bool) {
@@ -89,9 +97,17 @@ impl OpenOptions {
     pub fn create_new(&mut self, create_new: bool) {
         self.create_new = create_new;
     }
+    /// Sets the option to open a directory.
+    pub fn directory(&mut self, directory: bool) {
+        self.directory = directory;
+    }
+    /// check whether contains directory.
+    pub fn has_directory(&self) -> bool {
+        self.directory
+    }
 
     const fn is_valid(&self) -> bool {
-        if !self.read && !self.write && !self.append {
+        if !self.read && !self.write && !self.append && !self.directory {
             return false;
         }
         match (self.write, self.append) {
@@ -142,13 +158,15 @@ impl File {
         };
 
         let attr = node.get_attr()?;
+        debug!("attr: {:?}", attr);
         if attr.is_dir()
-            && (opts.create || opts.create_new || opts.write || opts.append || opts.truncate)
+            && (opts.create || opts.create_new || opts.write || opts.append || opts.truncate || opts.execute || opts.read)
         {
             return ax_err!(IsADirectory);
         }
         let access_cap = opts.into();
         if !perm_to_cap(attr.perm()).contains(access_cap) {
+            debug!("perm: {:?}, cap: {:?}", attr.perm(), access_cap);
             return ax_err!(PermissionDenied);
         }
 
@@ -251,6 +269,7 @@ impl File {
 impl Directory {
     fn access_node(&self, cap: Cap) -> AxResult<&VfsNodeRef> {
         self.node.access_or_err(cap, AxError::PermissionDenied)
+            .inspect_err(|e| debug!("access node failed: {:?}", e))
     }
 
     fn _open_dir_at(dir: Option<&VfsNodeRef>, path: &str, opts: &OpenOptions) -> AxResult<Self> {
@@ -392,6 +411,9 @@ impl From<&OpenOptions> for Cap {
         }
         if opts.write | opts.append {
             cap |= Cap::WRITE;
+        }
+        if opts.execute {
+            cap |= Cap::EXECUTE;
         }
         cap
     }

@@ -147,6 +147,40 @@ impl AddrSpace {
         Ok(())
     }
 
+    pub fn alloc_for_lazy(
+        &mut self,
+        start: VirtAddr,
+        size: usize,
+    ) -> AxResult {
+        let end = (start + size).align_up_4k();
+        let mut start = start.align_down_4k();
+        let size = end - start;
+        if !self.contains_range(start, size) {
+            return ax_err!(InvalidInput, "address out of range");
+        }
+        while let Some(area) = self.areas.find(start) {
+            let area_backend = area.backend();
+            match area_backend{
+                Backend::Alloc { populate } => {
+                    if !*populate {
+                        let count = (area.end().min(end) - start).align_up_4k() / PAGE_SIZE_4K;
+                        for i in 0..count {
+                            let addr = start + i * PAGE_SIZE_4K;
+                            area_backend.handle_page_fault_alloc(addr, area.flags(), &mut self.pt, *populate);
+                        }
+                    }
+                }
+                _ => (),
+            }
+            start = area.end();
+            assert!(start.is_aligned_4k());
+        }
+        if start < end {
+            ax_err!(InvalidInput, "address out of range")?;
+        }
+        Ok(())
+    }
+
     /// Removes mappings within the specified virtual address range.
     ///
     /// Returns an error if the address range is out of the address space or not
