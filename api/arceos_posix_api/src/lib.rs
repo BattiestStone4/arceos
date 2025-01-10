@@ -36,6 +36,7 @@ pub use imp::resources::{sys_getrlimit, sys_setrlimit};
 pub use imp::sys::sys_sysconf;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};
 pub use imp::time::{sys_clock_gettime, sys_nanosleep, sys_get_time_of_day};
+pub use imp::path_link::{HARDLINK_MANAGER, FilePath, handle_file_path};
 
 #[cfg(feature = "fd")]
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl, FD_TABLE};
