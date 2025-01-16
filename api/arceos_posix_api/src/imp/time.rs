@@ -104,10 +104,3 @@ pub unsafe fn sys_get_time_of_day(ts: *mut ctypes::timeval) -> c_int {
         Ok(0)
     })
 }
-
-// /// Return ticks that have occured
-// pub unsafe fn sys_time(tms: *mut ctypes::Tms) -> c_int {
-//     syscall_body!(sys_time, {
-//         let (_, utime_us, stime_us) = time_stat_output();
-//     })
-// }
