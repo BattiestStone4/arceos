@@ -1,5 +1,5 @@
 use alloc::sync::Arc;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use core::ffi::{c_char, c_int};
 
 use axerrno::{LinuxError, LinuxResult};
@@ -12,12 +12,14 @@ use crate::{ctypes, utils::char_ptr_to_str};
 
 pub struct File {
     inner: Mutex<axfs::fops::File>,
+    path: String,
 }
 
 impl File {
-    fn new(inner: axfs::fops::File) -> Self {
+    fn new(inner: axfs::fops::File, path: String) -> Self {
         Self {
             inner: Mutex::new(inner),
+            path,
         }
     }
 
@@ -30,6 +32,14 @@ impl File {
         f.into_any()
             .downcast::<Self>()
             .map_err(|_| LinuxError::EINVAL)
+    }
+    
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    pub fn inner(&self) -> &Mutex<axfs::fops::File> {
+        &self.inner
     }
 }
 
@@ -191,7 +201,7 @@ where
 {
     open_file(filename, options)
         .map_err(Into::into)
-        .map(File::new)
+        .map(|f| File::new(f, filename.into()))
         .and_then(File::add_to_fd_table)
         .or_else(|e| match e {
             LinuxError::EISDIR => open_dir(filename, options)
@@ -232,7 +242,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut ctypes::stat) -> c_int {
         let mut options = OpenOptions::new();
         options.read(true);
         let file = axfs::fops::File::open(path?, &options)?;
-        let st = File::new(file).stat()?;
+        let st = File::new(file, path?.to_string()).stat()?;
         unsafe { *buf = st };
         Ok(0)
     })
