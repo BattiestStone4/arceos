@@ -2,14 +2,15 @@
 //!
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxError, AxResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
 use axns::{def_resource, AxResource};
 use axsync::Mutex;
 use lazyinit::LazyInit;
+use spin::RwLock;
 
-use crate::{api::FileType, fs, mounts};
+use crate::{api::FileType, dev::Disk, fs::{self, fatfs::FileWrapper}, mounts};
 
 def_resource! {
     #[allow(non_camel_case_types)]
@@ -37,7 +38,7 @@ struct MountPoint {
 
 struct RootDirectory {
     main_fs: Arc<dyn VfsOps>,
-    mounts: Vec<MountPoint>,
+    mounts: RwLock<Vec<MountPoint>>,
 }
 
 static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
@@ -58,33 +59,33 @@ impl RootDirectory {
     pub const fn new(main_fs: Arc<dyn VfsOps>) -> Self {
         Self {
             main_fs,
-            mounts: Vec::new(),
+            mounts: RwLock::new(Vec::new()),
         }
     }
 
-    pub fn mount(&mut self, path: &'static str, fs: Arc<dyn VfsOps>) -> AxResult {
+    pub fn mount(&self, path: &'static str, fs: Arc<dyn VfsOps>) -> AxResult {
         if path == "/" {
             return ax_err!(InvalidInput, "cannot mount root filesystem");
         }
         if !path.starts_with('/') {
             return ax_err!(InvalidInput, "mount path must start with '/'");
         }
-        if self.mounts.iter().any(|mp| mp.path == path) {
+        if self.mounts.read().iter().any(|mp| mp.path == path) {
             return ax_err!(InvalidInput, "mount point already exists");
         }
         // create the mount point in the main filesystem if it does not exist
         self.main_fs.root_dir().create(path, FileType::Dir)?;
         fs.mount(path, self.main_fs.root_dir().lookup(path)?)?;
-        self.mounts.push(MountPoint::new(path, fs));
+        self.mounts.write().push(MountPoint::new(path, fs));
         Ok(())
     }
 
-    pub fn _umount(&mut self, path: &str) {
-        self.mounts.retain(|mp| mp.path != path);
+    pub fn _umount(&self, path: &str) {
+        self.mounts.write().retain(|mp| mp.path != path);
     }
 
     pub fn contains(&self, path: &str) -> bool {
-        self.mounts.iter().any(|mp| mp.path == path)
+        self.mounts.read().iter().any(|mp| mp.path == path)
     }
 
     fn lookup_mounted_fs<F, T>(&self, path: &str, f: F) -> AxResult<T>
@@ -102,7 +103,7 @@ impl RootDirectory {
 
         // Find the filesystem that has the longest mounted path match
         // TODO: more efficient, e.g. trie
-        for (i, mp) in self.mounts.iter().enumerate() {
+        for (i, mp) in self.mounts.read().iter().enumerate() {
             // skip the first '/'
             if path.starts_with(&mp.path[1..]) && mp.path.len() - 1 > max_len {
                 max_len = mp.path.len() - 1;
@@ -113,7 +114,7 @@ impl RootDirectory {
         if max_len == 0 {
             f(self.main_fs.clone(), path) // not matched any mount point
         } else {
-            f(self.mounts[idx].fs.clone(), &path[max_len..]) // matched at `idx`
+            f(self.mounts.read()[idx].fs.clone(), &path[max_len..]) // matched at `idx`
         }
     }
 }
@@ -172,7 +173,7 @@ pub(crate) fn init_rootfs(disk: crate::dev::Disk) {
         }
     }
 
-    let mut root_dir = RootDirectory::new(main_fs);
+    let root_dir = RootDirectory::new(main_fs);
 
     #[cfg(feature = "devfs")]
     root_dir
@@ -324,4 +325,26 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
         remove_file(None, new)?;
     }
     parent_node_of(None, old).rename(old, new)
+}
+
+pub fn mount(src: &str, mount_target: &'static str) -> AxResult {
+    let fs = lookup(None, src).inspect_err(|e| log::error!("{e}"))?;
+    let fs = fs
+        .as_any()
+        .downcast_ref::<FileWrapper<Disk>>()
+        .ok_or(AxError::InvalidInput)?;
+    let fs = crate::fs::fatfs::FatFileSystemFromFile::new(fs.clone());
+    let fs_box = Box::new(fs);
+    let fs_ptr = Box::into_raw(fs_box);
+    unsafe {
+        (*fs_ptr).init();
+        let fs = Box::from_raw(fs_ptr);
+        ROOT_DIR.mount(mount_target, Arc::new(*fs))?;
+    }
+    Ok(())
+}
+
+pub fn umount(path: &str) -> AxResult {
+    ROOT_DIR._umount(path);
+    Ok(())
 }

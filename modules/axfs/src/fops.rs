@@ -106,6 +106,22 @@ impl OpenOptions {
         self.directory
     }
 
+    pub fn set_create(mut self, create: bool, create_new: bool) -> Self {
+        self.create = create;
+        self.create_new = create_new;
+        self
+    }
+
+    pub fn set_read(mut self, read: bool) -> Self {
+        self.read = read;
+        self
+    }
+
+    pub fn set_write(mut self, write: bool) -> Self {
+        self.write = write;
+        self
+    }
+
     const fn is_valid(&self) -> bool {
         if !self.read && !self.write && !self.append && !self.directory {
             return false;
