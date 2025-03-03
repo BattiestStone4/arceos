@@ -3,6 +3,7 @@
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
 use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::boxed::Box;
 use axerrno::{AxError, AxResult, ax_err};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
 use axns::{ResArc, def_resource};
@@ -15,6 +16,16 @@ use crate::{
     fs::{self},
     mounts,
 };
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "lwext4_rs")] {
+        use crate::fs::lwext4_rust::Ext4FileSystem;
+    }
+    else if #[cfg(feature = "fatfs")] {
+        use crate::fs::fatfs::FileWrapper;
+        use crate::dev::Disk;
+    }
+}
 
 def_resource! {
     pub static CURRENT_DIR_PATH: ResArc<Mutex<String>> = ResArc::new();
@@ -335,4 +346,44 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
         remove_file(None, new)?;
     }
     parent_node_of(None, old).rename(old, new)
+}
+
+pub fn mount(src: &str, mount_target: &'static str) -> AxResult {
+    let fs = lookup(None, src).inspect_err(|e| log::error!("{e}"))?;
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "lwext4_rs")] {
+            let fs = fs
+                .as_any()
+                .downcast_ref::<Ext4FileSystem>()
+                .ok_or(AxError::InvalidInput)?;
+            let fs_box = Box::new(fs);
+            let fs_ptr = Box::into_raw(fs_box);
+            unsafe {
+                let fs_ptr = (*fs_ptr) as *const Ext4FileSystem as *mut Ext4FileSystem;
+                let fs = Box::from_raw(fs_ptr);
+                ROOT_DIR.mount(mount_target, Arc::new(*fs))?;
+            }
+        } else if #[cfg(feature = "fatfs")] {
+            let fs = fs
+                .as_any()
+                .downcast_ref::<<Disk>>()
+                .ok_or(AxError::InvalidInput)?;
+            let fs = crate::fs::fatfs::FatFileSystemFromFile::new(fs.clone());
+            let fs_box = Box::new(fs);
+            let fs_ptr = Box::into_raw(fs_box);
+            unsafe {
+                (*fs_ptr).init();
+                let fs = Box::from_raw(fs_ptr);
+                ROOT_DIR.mount(mount_target, Arc::new(*fs))?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub fn umount(path: &str) -> AxResult {
+    ROOT_DIR._umount(path);
+    Ok(())
 }

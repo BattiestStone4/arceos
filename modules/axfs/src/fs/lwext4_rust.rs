@@ -51,7 +51,6 @@ impl VfsOps for Ext4FileSystem {
         Arc::clone(&self.root)
     }
 }
-
 pub struct FileWrapper(Mutex<Ext4File>);
 
 unsafe impl Send for FileWrapper {}
