@@ -372,7 +372,7 @@ impl AddrSpace {
                 .map(new_area, &mut new_pt, false)
                 .map_err(mapping_err_to_ax_err)?;
             // 将原区域的数据复制到新区域中。
-            buf.resize(buf.capacity().max(area.size()), 0);
+            buf.resize(area.size(), 0);
             self.read(area.start(), &mut buf).inspect_err(|_| {
                 new_areas.clear(&mut new_pt).unwrap();
             })?;

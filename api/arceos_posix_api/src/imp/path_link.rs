@@ -354,8 +354,7 @@ fn handle_empty_path(dir_fd: isize) -> AxResult<String> {
 }
 
 fn handle_relative_path(dir_fd: isize, path: &str) -> AxResult<String> {
-    let fd_table = FD_TABLE.write();
-    if dir_fd >= fd_table.count() as isize || dir_fd < 0 {
+    if dir_fd >= FD_TABLE.write().count() as isize || dir_fd < 0 {
         axlog::warn!("文件描述符索引超出范围");
         return Err(AxError::InvalidInput);
     }

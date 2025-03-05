@@ -33,7 +33,7 @@ mod root;
 
 pub mod api;
 pub mod fops;
-pub use root::{CURRENT_DIR, CURRENT_DIR_PATH, mount, umount};
+pub use root::{CURRENT_DIR, CURRENT_DIR_PATH};
 
 use axdriver::{AxDeviceContainer, prelude::*};
 

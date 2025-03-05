@@ -3,6 +3,7 @@ use alloc::sync::Arc;
 use core::ffi::{c_char, c_int};
 
 use axerrno::{LinuxError, LinuxResult};
+use axfs::api::set_current_dir;
 use axfs::fops::OpenOptions;
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
@@ -160,12 +161,16 @@ pub fn sys_openat(
         Err(_) => return -1,
     };
 
-    debug!(
+    info!(
         "sys_openat <= {} {:?} {:#o} {:#o}",
         dirfd, filename, flags, mode
     );
 
     let options = flags_to_options(flags, mode);
+
+    if filename.starts_with('.') {
+        let _ = set_current_dir("/musl/basic/");
+    }
 
     if filename.starts_with('/') || dirfd == AT_FDCWD as _ {
         return sys_open(filename.as_ptr() as _, flags, mode);
