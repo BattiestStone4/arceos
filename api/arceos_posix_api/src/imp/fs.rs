@@ -3,13 +3,12 @@ use alloc::sync::Arc;
 use core::ffi::{c_char, c_int};
 
 use axerrno::{LinuxError, LinuxResult};
-use axfs::api::set_current_dir;
 use axfs::fops::OpenOptions;
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
 
 use super::fd_ops::{FileLike, get_file_like};
-use crate::AT_FDCWD;
+use crate::handle_file_path;
 use crate::{ctypes, utils::char_ptr_to_str};
 
 /// File wrapper for `axfs::fops::File`.
@@ -128,7 +127,7 @@ fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let filename = char_ptr_to_str(filename);
-    debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
+    info!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
         if options.has_directory() {
@@ -156,40 +155,32 @@ pub fn sys_openat(
     flags: c_int,
     mode: ctypes::mode_t,
 ) -> c_int {
-    let filename = match char_ptr_to_str(filename) {
-        Ok(s) => s,
-        Err(_) => return -1,
-    };
-
     info!(
         "sys_openat <= {} {:?} {:#o} {:#o}",
         dirfd, filename, flags, mode
     );
 
-    let options = flags_to_options(flags, mode);
+    syscall_body!(sys_openat, {
+        let binding = handle_file_path(dirfd as _, Some(filename as _), false)?;
+        let filename = binding.as_str();
 
-    if filename.starts_with('.') {
-        let _ = set_current_dir("/musl/basic/");
-    }
+        info!(
+            "handled filename : {:?}",
+            filename
+        );
 
-    if filename.starts_with('/') || dirfd == AT_FDCWD as _ {
-        return sys_open(filename.as_ptr() as _, flags, mode);
-    }
-
-    match Directory::from_fd(dirfd).and_then(|dir| {
+        let options = flags_to_options(flags, mode);
+        if options.has_directory() {
+            return Directory::from_path(filename.into(), &options)
+                .and_then(Directory::add_to_fd_table);
+        }
         add_file_or_directory_fd(
-            |filename, options| dir.inner.lock().open_file_at(filename, options),
-            |filename, options| dir.inner.lock().open_dir_at(filename, options),
+            axfs::fops::File::open,
+            axfs::fops::Directory::open_dir,
             filename,
             &options,
         )
-    }) {
-        Ok(fd) => fd,
-        Err(e) => {
-            debug!("sys_openat => {}", e);
-            -1
-        }
-    }
+    })
 }
 
 /// Use the function to open file or directory, then add into file descriptor table.
