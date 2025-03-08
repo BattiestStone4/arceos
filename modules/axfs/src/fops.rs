@@ -178,7 +178,12 @@ impl File {
 
         let attr = node.get_attr()?;
         if attr.is_dir()
-            && (opts.create || opts.create_new || opts.write || opts.append || opts.truncate || opts.read)
+            && (opts.create
+            || opts.create_new
+            || opts.write
+            || opts.append
+            || opts.truncate
+            || opts.read)
         {
             return ax_err!(IsADirectory);
         }

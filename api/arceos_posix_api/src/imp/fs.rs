@@ -164,10 +164,7 @@ pub fn sys_openat(
         let binding = handle_file_path(dirfd as _, Some(filename as _), false)?;
         let filename = binding.as_str();
 
-        info!(
-            "handled filename : {:?}",
-            filename
-        );
+        info!("handled filename : {:?}", filename);
 
         let options = flags_to_options(flags, mode);
         if options.has_directory() {
