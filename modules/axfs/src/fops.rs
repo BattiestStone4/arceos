@@ -182,8 +182,7 @@ impl File {
             || opts.create_new
             || opts.write
             || opts.append
-            || opts.truncate
-            || opts.read)
+            )
         {
             return ax_err!(IsADirectory);
         }

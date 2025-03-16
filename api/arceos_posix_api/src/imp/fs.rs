@@ -308,14 +308,14 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
 
 /// Directory wrapper for `axfs::fops::Directory`.
 pub struct Directory {
-    inner: Mutex<axfs::fops::Directory>,
+    _inner: Mutex<axfs::fops::Directory>,
     path: String,
 }
 
 impl Directory {
     fn new(inner: axfs::fops::Directory, path: String) -> Self {
         Self {
-            inner: Mutex::new(inner),
+            _inner: Mutex::new(inner),
             path,
         }
     }
