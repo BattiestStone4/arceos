@@ -177,13 +177,7 @@ impl File {
         };
 
         let attr = node.get_attr()?;
-        if attr.is_dir()
-            && (opts.create
-            || opts.create_new
-            || opts.write
-            || opts.append
-            )
-        {
+        if attr.is_dir() && (opts.create || opts.create_new || opts.write || opts.append) {
             return ax_err!(IsADirectory);
         }
         let access_cap = opts.into();
