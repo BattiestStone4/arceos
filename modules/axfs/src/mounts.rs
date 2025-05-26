@@ -13,6 +13,10 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     devfs.add("null", Arc::new(null));
     devfs.add("zero", Arc::new(zero));
     foo_dir.add("bar", Arc::new(bar));
+    // hwclock: /dev/misc/rtc
+    let rtc = fs::devfs::ZeroDev;
+    let misc = devfs.mkdir("misc");
+    misc.add("rtc", Arc::new(rtc));
     Arc::new(devfs)
 }
 
@@ -39,6 +43,14 @@ pub(crate) fn procfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     proc_root.create("sys/vm/overcommit_memory", VfsNodeType::File)?;
     let file_over = proc_root.clone().lookup("./sys/vm/overcommit_memory")?;
     file_over.write_at(0, b"0\n")?;
+
+    // Create /proc/meminfo
+    // TODO: stub
+    proc_root.create("meminfo", VfsNodeType::File)?;
+
+    // Create /proc/mounts
+    // TODO: stub
+    proc_root.create("mounts", VfsNodeType::File)?;
 
     // Create /proc/self/stat
     proc_root.create("self", VfsNodeType::Dir)?;
