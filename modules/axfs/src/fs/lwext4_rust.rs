@@ -316,7 +316,9 @@ impl VfsNodeOps for FileWrapper {
 
     fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
         let mut file = self.0.lock();
-        file.file_rename(src_path, dst_path)
+        let prefix = file.get_path();
+        let src_path = prefix.to_string_lossy() + src_path;
+        file.file_rename(&src_path, dst_path)
             .map(|_v| ())
             .map_err(|e| e.try_into().unwrap())
     }
