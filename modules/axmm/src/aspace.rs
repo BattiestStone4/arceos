@@ -1,5 +1,6 @@
 use core::fmt;
 
+use alloc::sync::Arc;
 use axerrno::{AxError, AxResult, ax_err};
 use axhal::mem::phys_to_virt;
 use axhal::paging::{MappingFlags, PageTable, PagingError};
@@ -8,7 +9,7 @@ use memory_addr::{
 };
 use memory_set::{MemoryArea, MemorySet};
 
-use crate::backend::Backend;
+use crate::backend::{Backend, SharedPages};
 use crate::mapping_err_to_ax_err;
 
 /// The virtual memory address space.
@@ -37,6 +38,11 @@ impl AddrSpace {
     /// Returns the reference to the inner page table.
     pub const fn page_table(&self) -> &PageTable {
         &self.pt
+    }
+
+    /// Returns the mutable reference to the inner page table.
+    pub const fn page_table_mut(&mut self) -> &mut PageTable {
+        &mut self.pt
     }
 
     /// Returns the root physical address of the inner page table.
@@ -161,6 +167,40 @@ impl AddrSpace {
         Ok(())
     }
 
+    /// Add a new shared mapping.
+    ///
+    /// See [`Backend`] for more details about the mapping backends.
+    ///
+    /// The `flags` parameter indicates the mapping permissions and attributes.
+    ///
+    /// Returns an error if the address range is out of the address space or not
+    /// aligned.
+    pub fn map_shared(
+        &mut self,
+        start: VirtAddr,
+        size: usize,
+        flags: MappingFlags,
+        source: Option<Arc<SharedPages>>,
+    ) -> AxResult<Arc<SharedPages>> {
+        self.validate_region(start, size)?;
+
+        let area = MemoryArea::new(
+            start,
+            size,
+            flags,
+            Backend::new_shared(size / PAGE_SIZE_4K, source),
+        );
+        let result = match area.backend() {
+            Backend::Shared { pages } => pages.clone(),
+            _ => unreachable!(),
+        };
+        self.areas
+            .map(area, &mut self.pt, false)
+            .map_err(mapping_err_to_ax_err)?;
+
+        Ok(result)
+    }
+
     /// Populates the area with physical frames, returning false if the area
     /// contains unmapped area.
     pub fn populate_area(&mut self, mut start: VirtAddr, size: usize) -> AxResult {
@@ -169,7 +209,7 @@ impl AddrSpace {
 
         while let Some(area) = self.areas.find(start) {
             let backend = area.backend();
-            if let Backend::Alloc { populate } = backend {
+            if let Backend::Alloc { populate, .. } = backend {
                 if !*populate {
                     for addr in PageIter4K::new(start, area.end().min(end)).unwrap() {
                         match self.pt.query(addr) {
@@ -395,7 +435,7 @@ impl AddrSpace {
                 .map(new_area, &mut new_aspace.pt, false)
                 .map_err(mapping_err_to_ax_err)?;
 
-            if matches!(backend, Backend::Linear { .. }) {
+            if matches!(backend, Backend::Linear { .. } | Backend::Shared { .. }) {
                 continue;
             }
             // Copy data from old memory area to new memory area.
@@ -420,7 +460,9 @@ impl AddrSpace {
                             Err(_) => return Err(AxError::BadAddress),
                         }
                     }
-                    Err(_) => return Err(AxError::BadAddress),
+                    Err(_) => {
+                        return Err(AxError::BadAddress);
+                    }
                 };
                 unsafe {
                     core::ptr::copy_nonoverlapping(
