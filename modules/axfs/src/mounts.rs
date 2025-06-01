@@ -17,6 +17,9 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     let rtc = fs::devfs::ZeroDev;
     let misc = devfs.mkdir("misc");
     misc.add("rtc", Arc::new(rtc));
+    // shm
+    let shm = fs::ramfs::RamFileSystem::new();
+    devfs.add("shm", shm.root_dir_node());
     Arc::new(devfs)
 }
 
