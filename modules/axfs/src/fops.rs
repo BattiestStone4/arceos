@@ -382,6 +382,11 @@ impl Directory {
     pub fn rename(&self, old: &str, new: &str) -> AxResult {
         crate::root::rename(old, new)
     }
+    
+    /// get attr of directory
+    pub fn get_attr(&self) -> AxResult<FileAttr> {
+        self.access_node(Cap::empty())?.get_attr()
+    }
 }
 
 impl Drop for File {
